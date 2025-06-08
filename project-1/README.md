@@ -179,18 +179,6 @@ Contributions to this project are welcome. Please follow these steps:
 
 Please ensure your code follows the project's style guidelines and includes appropriate tests.
 
-## Changelog
-
-### v1.0.0 (2024-05-30)
-- Initial release
-- Basic RAG functionality with OpenAI models
-- Web interface for querying the system
-
-### v1.1.0 (2024-06-15)
-- Added configurable prompt templates
-- Implemented multiple reasoning strategies
-- Improved source attribution
-
 ## Contact
 
 For questions, issues, or contributions, please contact:
