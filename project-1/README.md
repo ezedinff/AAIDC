@@ -23,8 +23,6 @@ This system is designed for:
   - `config_loader.py` - YAML configuration loader
 - `static/` - Web interface HTML, CSS, and JavaScript
 - `logs/` - Log files for system interactions
-- `docker/` - Docker configuration files
-- `tests/` - Test scripts and utilities
 
 ## Prerequisites
 
