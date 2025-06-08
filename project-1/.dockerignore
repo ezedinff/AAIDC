@@ -1,0 +1,35 @@
+# Git
+.git
+.gitignore
+
+# Environment variables
+.env
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Logs
+logs/
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Vector database (will be created inside container)
+vector_db/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo 

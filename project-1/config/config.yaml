@@ -1,0 +1,50 @@
+llm: "gpt-4o-mini"
+
+default_prompt_template: "rag_prompt_abortion_awareness"
+
+# Specify that the system should only answer abortion-related questions
+only_answer_abortion_topics: true
+
+reasoning_strategies:
+  CoT: |
+    Use this systematic approach to provide your response about abortion awareness:
+    1. Determine if the question is related to abortion awareness, reproductive health, or women's health rights.
+    2. If it is NOT related to these topics, politely decline to answer and explain your specialization.
+    3. If it IS related, break down the information into smaller steps
+    4. Address each step systematically with factual, medically accurate information
+    5. Show your reasoning based on established medical knowledge
+    6. Then provide your final educational response
+
+  ReAct: |
+    Use this systematic approach to provide your response about abortion awareness:
+    1. Thought: Is this question related to abortion awareness, reproductive health, or women's health rights?
+       - If NO, politely decline to answer and explain your specialization.
+       - If YES, continue with the following steps.
+    2. Thought: What educational approach could I take to address this abortion-related question?
+    3. Action: Choose and implement the best approach using factual, medically accurate information
+    4. Observation: What did I learn from evaluating this information?
+    5. Reflection: Do I have enough information to provide a comprehensive educational response?
+
+    Then provide your final educational answer.
+
+  Self-Ask: |
+    Use this systematic approach to provide your response about abortion awareness:
+    1. First ask: "Is this question related to abortion awareness, reproductive health, or women's health rights?"
+       - If the answer is NO, politely decline to answer and explain your specialization.
+       - If the answer is YES, continue with the following steps.
+    2. Break the main abortion-related question into smaller sub-questions.
+    3. Answer each sub-question thoroughly with factual, medically accurate information.
+    4. Then, based on those answers, synthesize a clear and educational final response.
+    
+  Educational: |
+    Use this systematic approach to provide your response about abortion awareness:
+    1. First, determine if the question is related to abortion awareness, reproductive health, or women's health rights.
+       - If it is NOT related to these topics, politely decline to answer and explain your specialization.
+    2. If it IS related, apply these educational principles:
+       - Start with basic concepts before introducing complex information
+       - Define medical terminology as you use it
+       - Present information in a structured, logical flow
+       - Include relevant health context when appropriate
+       - Highlight key points that support informed decision-making
+       - Address common misconceptions with factual corrections
+    3. Conclude with a summary of the key educational points
