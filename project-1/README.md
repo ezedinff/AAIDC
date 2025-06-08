@@ -1,6 +1,39 @@
-# RAG System with LangChain
+# RAG System for Abortion Awareness Education
 
-A retrieval-augmented generation (RAG) system that can answer questions based on custom knowledge documents. This implementation uses OpenAI's models for both embeddings and the language model.
+A retrieval-augmented generation (RAG) system that provides factual, educational information about abortion awareness, reproductive health, and related women's health topics. This implementation uses OpenAI's models for both embeddings and the language model.
+
+## Target Audience
+
+This system is designed for:
+- Educators providing reproductive health information
+- Health professionals seeking a reference tool
+- Students learning about women's reproductive health
+- Anyone seeking factual, educational information about abortion and reproductive health
+
+## Repository Structure
+
+- `data/` - Contains knowledge documents used for the RAG system
+- `src/` - Source code for the RAG implementation
+  - `api.py` - Flask API server
+  - `config.py` - Configuration settings
+  - `ingest.py` - Document ingestion and processing
+  - `main.py` - Main entry point
+  - `rag_chain.py` - Core RAG implementation
+  - `prompt_utils.py` - Prompt template utilities
+  - `config_loader.py` - YAML configuration loader
+- `static/` - Web interface HTML, CSS, and JavaScript
+- `logs/` - Log files for system interactions
+- `docker/` - Docker configuration files
+- `tests/` - Test scripts and utilities
+
+## Prerequisites
+
+Before installation, ensure you have:
+- Python 3.9 or higher
+- An OpenAI API key with access to GPT-4o models
+- At least 4GB of RAM available
+- Basic understanding of terminal/command line interfaces
+- Sufficient disk space (at least 1GB) for document storage and embeddings
 
 ## Setup
 
@@ -73,6 +106,16 @@ A retrieval-augmented generation (RAG) system that can answer questions based on
    ```
 3. Access the web interface at http://localhost:5000
 
+### Data Requirements
+
+The system works with text documents in the following formats:
+- `.txt` - Plain text files
+- `.pdf` - PDF documents
+- `.docx` - Microsoft Word documents
+- `.html` - Web pages
+
+Documents should contain factual information about abortion, reproductive health, and related topics.
+
 ## API Endpoints
 
 The system provides a REST API for interacting with the RAG system:
@@ -81,23 +124,81 @@ The system provides a REST API for interacting with the RAG system:
 - `POST /query` - Send a query to the RAG system
   ```json
   {
-    "query": "What is RAG?"
+    "query": "What is abortion?"
   }
   ```
 - `POST /reset` - Reset the RAG session
+- `GET /strategies` - Get available reasoning strategies
+- `POST /strategy` - Set reasoning strategy
+- `GET /prompt_templates` - Get available prompt templates
+- `POST /prompt_template` - Set prompt template
 
 ## Web Interface
 
 A simple web interface is available at http://localhost:5000 when running the API server. This provides a user-friendly way to interact with the RAG system.
 
-## Models
+## Models and Configuration
 
 The system uses the following OpenAI models:
 - `text-embedding-3-small` for document embeddings
 - `gpt-4o-mini` for generating responses
 
-You can change these models in the `src/config.py` file.
+Key configuration options:
+- `CHUNK_SIZE` - Size of text chunks for embeddings (default: 1000)
+- `CHUNK_OVERLAP` - Overlap between chunks (default: 200)
+- `TOP_K_RESULTS` - Number of document chunks to retrieve (default: 4)
+- `TEMPERATURE` - Model temperature setting (default: 0.2)
+- `MAX_TOKENS` - Maximum tokens in response (default: 1000)
 
-## Evaluation
+You can change these settings in the `src/config.py` file.
 
-The system logs all queries and responses in the `logs/` directory. You can review these logs to evaluate system performance. 
+## Testing
+
+To run the test suite:
+
+```bash
+# Install test dependencies
+pip install -r requirements-test.txt
+
+# Run all tests
+python -m pytest tests/
+
+# Run specific test file
+python -m pytest tests/test_rag_chain.py
+```
+
+## Contributing
+
+Contributions to this project are welcome. Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests to ensure they pass
+5. Commit your changes (`git commit -m 'Add some amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+Please ensure your code follows the project's style guidelines and includes appropriate tests.
+
+## Changelog
+
+### v1.0.0 (2024-05-30)
+- Initial release
+- Basic RAG functionality with OpenAI models
+- Web interface for querying the system
+
+### v1.1.0 (2024-06-15)
+- Added configurable prompt templates
+- Implemented multiple reasoning strategies
+- Improved source attribution
+
+## Contact
+
+For questions, issues, or contributions, please contact:
+- Project Maintainer: [Ezedin Fedlu] - [ezedin.fedlu@gmail.com]
+- GitHub Issues: [Submit an issue](https://github.com/ezedinff/aaidc)
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE)
