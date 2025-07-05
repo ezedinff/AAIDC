@@ -1,0 +1,6 @@
+.env
+logs/
+outputs/
+temp/
+data/
+venv/

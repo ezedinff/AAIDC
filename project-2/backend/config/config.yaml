@@ -1,0 +1,88 @@
+# Application Configuration
+app:
+  name: "Agentic AI Video Generator"
+  version: "1.0.0"
+  description: "AI-powered video generation with LangGraph workflow"
+
+# Video Generation Settings
+video:
+  scene_count: 3
+  duration: 30  # seconds
+  resolution: "1280x720"
+  fps: 24
+  audio_voice: "alloy"
+  text_font_size: 48
+  text_color: "black"
+  background_color: "white"
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 5000
+  cors_origins: ["*"]
+  max_video_duration: 300  # 5 minutes max
+
+# Database Configuration
+database:
+  type: "sqlite"
+  path: "data/videos.db"
+  backup_enabled: true
+  backup_interval: 86400  # 24 hours
+
+# Reasoning Strategies for Dynamic Prompts
+reasoning_strategies:
+  step_by_step: |
+    Think through this step by step:
+    1. First, analyze the requirements carefully
+    2. Break down the task into smaller components
+    3. Consider different approaches and their trade-offs
+    4. Provide a clear, well-structured response
+    5. Double-check your work for accuracy and completeness
+
+  creative_flow: |
+    Approach this with creative thinking:
+    - Let your imagination flow freely
+    - Consider unconventional angles and perspectives
+    - Build upon ideas iteratively
+    - Focus on engaging and compelling content
+    - Ensure the result is both creative and coherent
+
+  analytical: |
+    Use analytical thinking for this task:
+    - Examine all available information systematically
+    - Identify key patterns and relationships
+    - Consider cause-and-effect relationships
+    - Provide evidence-based reasoning
+    - Present findings in a logical structure
+
+  storytelling: |
+    Focus on storytelling elements:
+    - Create compelling narratives with clear structure
+    - Develop engaging characters or scenarios
+    - Build tension and resolution
+    - Use vivid descriptions and sensory details
+    - Ensure emotional resonance with the audience
+
+# Prompt Templates Configuration
+prompt_templates:
+  scene_generation:
+    reasoning_strategy: "creative_flow"
+    max_tokens: 1000
+    temperature: 0.7
+    
+  scene_critique:
+    reasoning_strategy: "analytical"
+    max_tokens: 800
+    temperature: 0.5
+    
+  audio_generation:
+    reasoning_strategy: "storytelling"
+    max_tokens: 500
+    temperature: 0.6
+
+# Error Handling
+error_handling:
+  max_retries: 3
+  timeout: 30
+  fallback_enabled: true
+  log_level: "INFO" 

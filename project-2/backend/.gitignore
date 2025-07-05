@@ -1,0 +1,4 @@
+outputs/
+temp/*
+data/*
+venv/*

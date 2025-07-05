@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: ai-video-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    volumes:
+      # Mount source code for development
+      - ./backend:/app
+      # Persist generated videos
+      - ./outputs:/app/outputs
+      # Persist database
+      - ./data:/app/data
+      # Persist temp files
+      - ./temp:/app/temp
+      # Create host directories first
+    command: sh -c "mkdir -p /app/data /app/outputs /app/temp && python app.py"
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  frontend:
+    build: ./frontend
+    container_name: ai-video-frontend
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
+    volumes:
+      # Mount source code for development
+      - ./frontend:/app
+      # Exclude node_modules to avoid conflicts
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    stdin_open: true
+    tty: true 
