@@ -6,12 +6,24 @@ A simple AI video generator that creates videos with text and audio narration fr
 
 ![Workflow](graph.png)
 
-The system uses 4 AI agents in sequence:
+The system uses 4 AI agents with integrated database logging:
 
 1. **Scene Generator** - Creates video scenes from your input
-2. **Scene Critic** - Improves and refines the scenes  
-3. **Audio Agent** - Generates narration audio
-4. **Video Agent** - Combines text visuals with audio into final MP4
+2. **Database Logger** - Saves scenes and logs progress to database using custom tools
+3. **Scene Critic** - Improves and refines the scenes  
+4. **Audio Agent** - Generates narration audio
+5. **Video Agent** - Combines text visuals with audio into final MP4
+
+### Database Tools Integration
+
+The workflow includes custom database tools for comprehensive logging:
+
+- **`save_scene_progress`** - Saves raw and improved scenes to database
+- **`log_progress_event`** - Logs detailed progress events for each workflow step
+- **`get_video_context`** - Retrieves video context for enhanced scene generation
+- **`search_similar_videos`** - Finds similar videos for creative inspiration
+
+All progress is automatically tracked in the database, providing complete audit trails and enabling recovery from failures.
 
 ## Quick Start with Docker
 
@@ -44,6 +56,7 @@ The system uses 4 AI agents in sequence:
 - Open `http://localhost:3000`
 - Enter a description like "Create a video about coffee origins"
 - Watch real-time progress as the AI generates your video
+- View detailed progress logs and scene data in the database
 
 ### API Example
 ```bash
@@ -54,6 +67,24 @@ curl -X POST http://localhost:5000/api/videos \
     "description": "A video about coffee history",
     "user_input": "Create a video about how coffee was discovered in Ethiopia"
   }'
+```
+
+### Database Features
+
+The system automatically tracks and stores:
+- **Video metadata** - Title, description, user input, creation timestamps
+- **Scene data** - Raw and improved scenes saved as JSON
+- **Progress logs** - Detailed step-by-step progress with timestamps
+- **Error tracking** - Failed attempts and error messages for debugging
+- **Similar video references** - Videos with similar topics for inspiration
+
+Access progress data via API:
+```bash
+# Get video progress history
+curl http://localhost:5000/api/videos/{video_id}/progress
+
+# Get specific video with all scene data
+curl http://localhost:5000/api/videos/{video_id}
 ```
 
 ## Example Videos
