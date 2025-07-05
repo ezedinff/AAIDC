@@ -321,19 +321,20 @@ def generate_video_async(video_id: str, user_input: str):
             workflow_with_progress = VideoGeneratorWithProgress(video_id, db_manager)
             result = workflow_with_progress.generate_video(user_input)
             
-            if result.get('final_video') and os.path.exists(result.get('final_video')):
+            final_video_path = result.get('final_video')
+            if final_video_path and os.path.exists(final_video_path):
                 # Get video duration if possible
                 duration = None
                 try:
                     import moviepy.editor as mp
-                    video_clip = mp.VideoFileClip(result['final_video'])
+                    video_clip = mp.VideoFileClip(final_video_path)
                     duration = video_clip.duration
                     video_clip.close()
                 except:
                     pass
                 
                 # Update database with success
-                db_manager.update_video_result(video_id, result['final_video'], duration)
+                db_manager.update_video_result(video_id, final_video_path, duration or 0.0)
                 db_manager.add_progress_entry(video_id, 'completion', 'completed', 'Video generation completed successfully')
                 
             else:
@@ -354,8 +355,8 @@ class VideoGeneratorWithProgress:
     def __init__(self, video_id: str, db_manager: DatabaseManager):
         self.video_id = video_id
         self.db_manager = db_manager
-        # Create generator with progress callback
-        self.generator = VideoGeneratorGraph(progress_callback=self._send_sse_update)
+        # Create generator with progress callback and video_id for database tools
+        self.generator = VideoGeneratorGraph(progress_callback=self._send_sse_update, video_id=video_id)
     
     def _send_sse_update(self, step: str, progress: int, message: str):
         """Send SSE update to connected clients."""

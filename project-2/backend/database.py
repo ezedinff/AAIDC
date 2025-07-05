@@ -98,8 +98,8 @@ class DatabaseManager:
         """Get all videos ordered by creation date."""
         return Video.query.order_by(Video.created_at.desc()).all()
     
-    def update_video_status(self, video_id: str, status: str, current_step: str = None, 
-                           progress_percent: int = None, error_message: str = None) -> bool:
+    def update_video_status(self, video_id: str, status: str, current_step: Optional[str] = None, 
+                           progress_percent: Optional[int] = None, error_message: Optional[str] = None) -> bool:
         """Update video status and progress."""
         video = self.get_video(video_id)
         if not video:
@@ -118,7 +118,7 @@ class DatabaseManager:
         self.db.session.commit()
         return True
     
-    def update_video_result(self, video_id: str, file_path: str, duration: float = None) -> bool:
+    def update_video_result(self, video_id: str, file_path: str, duration: Optional[float] = None) -> bool:
         """Update video with final result."""
         video = self.get_video(video_id)
         if not video:
@@ -133,7 +133,7 @@ class DatabaseManager:
         self.db.session.commit()
         return True
     
-    def add_progress_entry(self, video_id: str, step: str, status: str, message: str = None):
+    def add_progress_entry(self, video_id: str, step: str, status: str, message: Optional[str] = None):
         """Add a progress entry."""
         progress = VideoProgress(
             video_id=video_id,

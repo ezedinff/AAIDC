@@ -8,18 +8,20 @@ from agents.scene_generator import SceneGeneratorAgent
 from agents.scene_critic import SceneCriticAgent
 from agents.audio_agent import AudioAgent
 from agents.video_agent import VideoAgent
+from tools.database_tools import save_scene_progress, search_similar_videos, log_progress_event, get_video_context
 
 logger = logging.getLogger(__name__)
 
 class VideoGeneratorGraph:
     """LangGraph workflow for video generation."""
     
-    def __init__(self, progress_callback=None):
+    def __init__(self, progress_callback=None, video_id=None):
         self.scene_generator = SceneGeneratorAgent()
         self.scene_critic = SceneCriticAgent()
         self.audio_agent = AudioAgent()
         self.video_agent = VideoAgent()
         self.progress_callback = progress_callback
+        self.video_id = video_id
         
         # Build the graph
         self.graph = self._build_graph()
@@ -35,13 +37,15 @@ class VideoGeneratorGraph:
         
         # Add nodes
         workflow.add_node("scene_generation", self._scene_generation_node)
+        workflow.add_node("database_logging", self._database_logging_node)
         workflow.add_node("scene_critique", self._scene_critique_node)
         workflow.add_node("audio_generation", self._audio_generation_node)
         workflow.add_node("video_assembly", self._video_assembly_node)
         
-        # Add edges - workflow with retry logic
+        # Add edges - workflow with database logging integration
         workflow.add_edge(START, "scene_generation")
-        workflow.add_edge("scene_generation", "scene_critique")
+        workflow.add_edge("scene_generation", "database_logging")
+        workflow.add_edge("database_logging", "scene_critique")
         
         # Add conditional edge from scene_critique that can retry or continue
         workflow.add_conditional_edges(
@@ -68,17 +72,71 @@ class VideoGeneratorGraph:
         if self.progress_callback:
             self.progress_callback("scene_generation", 25, f"AI is generating video scenes (attempt {retry_count + 1})...")
         
+        # Log progress to database
+        if self.video_id:
+            try:
+                log_progress_event.invoke({
+                    "video_id": self.video_id,
+                    "step": "scene_generation",
+                    "status": "started",
+                    "message": f"Starting scene generation (attempt {retry_count + 1})"
+                })
+            except Exception as e:
+                logger.warning(f"Failed to log progress: {e}")
+        
         try:
             user_input = state.get("user_input", "")
             if not user_input:
                 raise ValueError("No user input provided")
             
-            # Generate scenes
+            # Get video context for better scene generation
+            video_context = {}
+            if self.video_id:
+                try:
+                    video_context = get_video_context.invoke({"video_id": self.video_id})
+                except Exception as e:
+                    logger.warning(f"Failed to get video context: {e}")
+            
+            # Search for similar videos for inspiration
+            similar_videos = []
+            try:
+                similar_videos = search_similar_videos.invoke({
+                    "topic": user_input,
+                    "limit": 3
+                })
+                logger.info(f"Found {len(similar_videos)} similar videos for inspiration")
+            except Exception as e:
+                logger.warning(f"Failed to search similar videos: {e}")
+            
+            # Generate scenes (could potentially use similar_videos for inspiration)
             raw_scenes = self.scene_generator.generate_scenes(user_input)
+            
+            # Save scenes to database
+            if self.video_id and raw_scenes:
+                try:
+                    save_scene_progress.invoke({
+                        "video_id": self.video_id,
+                        "scenes": raw_scenes,
+                        "step": "raw_scenes"
+                    })
+                except Exception as e:
+                    logger.warning(f"Failed to save scenes: {e}")
             
             # Send completion update
             if self.progress_callback:
                 self.progress_callback("scene_generation", 35, f"Generated {len(raw_scenes)} video scenes")
+            
+            # Log completion to database
+            if self.video_id:
+                try:
+                    log_progress_event.invoke({
+                        "video_id": self.video_id,
+                        "step": "scene_generation",
+                        "status": "completed",
+                        "message": f"Generated {len(raw_scenes)} scenes"
+                    })
+                except Exception as e:
+                    logger.warning(f"Failed to log completion: {e}")
             
             return {
                 "raw_scenes": raw_scenes,
@@ -90,10 +148,68 @@ class VideoGeneratorGraph:
             logger.error(f"Error in scene generation: {e}")
             if self.progress_callback:
                 self.progress_callback("scene_generation_failed", 35, f"Scene generation failed: {e}")
+            
+            # Log error to database
+            if self.video_id:
+                try:
+                    log_progress_event.invoke({
+                        "video_id": self.video_id,
+                        "step": "scene_generation",
+                        "status": "failed",
+                        "message": f"Scene generation failed: {e}"
+                    })
+                except Exception as e2:
+                    logger.warning(f"Failed to log error: {e2}")
+            
             return {
                 "error": str(e),
                 "current_step": "scene_generation_failed",
                 "messages": [{"role": "system", "content": f"Scene generation failed: {e}"}]
+            }
+    
+    def _database_logging_node(self, state: SimpleVideoState) -> Dict[str, Any]:
+        """Database logging node for saving scenes and logging progress."""
+        logger.info("Processing database logging...")
+        
+        try:
+            raw_scenes = state.get("raw_scenes", [])
+            
+            # Save raw scenes to database if we have them and a video_id
+            if self.video_id and raw_scenes:
+                try:
+                    result = save_scene_progress.invoke({
+                        "video_id": self.video_id,
+                        "scenes": raw_scenes,
+                        "step": "raw_scenes"
+                    })
+                    logger.info(f"Database save result: {result}")
+                except Exception as e:
+                    logger.warning(f"Failed to save scenes to database: {e}")
+                
+                # Log progress event
+                try:
+                    log_result = log_progress_event.invoke({
+                        "video_id": self.video_id,
+                        "step": "scene_generation_complete",
+                        "status": "completed",
+                        "message": f"Generated and saved {len(raw_scenes)} scenes"
+                    })
+                    logger.info(f"Progress log result: {log_result}")
+                except Exception as e:
+                    logger.warning(f"Failed to log progress: {e}")
+            
+            # Return state unchanged - this is a logging/persistence step
+            return {
+                "current_step": "database_logging",
+                "messages": [{"role": "system", "content": "Database logging completed"}]
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in database logging: {e}")
+            # Don't fail the workflow for database issues
+            return {
+                "current_step": "database_logging",
+                "messages": [{"role": "system", "content": f"Database logging failed: {e}"}]
             }
     
     def _scene_critique_node(self, state: SimpleVideoState) -> Dict[str, Any]:
@@ -118,6 +234,17 @@ class VideoGeneratorGraph:
                 improved_scenes = raw_scenes
                 logger.warning("Using original scenes as critique failed")
             
+            # Save improved scenes to database
+            if self.video_id and improved_scenes:
+                try:
+                    save_scene_progress.invoke({
+                        "video_id": self.video_id,
+                        "scenes": improved_scenes,
+                        "step": "improved_scenes"
+                    })
+                except Exception as e:
+                    logger.warning(f"Failed to save improved scenes: {e}")
+            
             # Check if scenes are acceptable or need retry
             is_acceptable = self._evaluate_scenes_quality(improved_scenes, retry_count)
             
@@ -125,6 +252,19 @@ class VideoGeneratorGraph:
                 # Scenes are good or we've reached max retries
                 if self.progress_callback:
                     self.progress_callback("scene_critique", 55, f"Scenes approved and ready for audio generation")
+                
+                # Log success to database
+                if self.video_id:
+                    try:
+                        log_progress_event.invoke({
+                            "video_id": self.video_id,
+                            "step": "scene_critique",
+                            "status": "completed",
+                            "message": f"Scenes approved after {retry_count} retries"
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to log scene critique completion: {e}")
+                
                 return {
                     "improved_scenes": improved_scenes,
                     "current_step": "scene_critique",
