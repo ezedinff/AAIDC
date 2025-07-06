@@ -1,4 +1,3 @@
-# tools/database_tools.py
 from langchain_core.tools import tool
 from typing import List, Dict, Any, Optional
 from database import DatabaseManager, db
