@@ -4,6 +4,14 @@ A comprehensive multi-agent system for automated video content creation using AI
 
 ![Workflow](https://github.com/ezedinff/AAIDC/blob/main/project-2/backend/graph.png?raw=true)
 
+## 🎬 Demo Video
+
+Watch the AI Video Generator in action:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Mu-_XU85XgY" title="AI Video Generator Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+*This demo shows the complete workflow from text input to final video generation using our multi-agent system.*
+
 ## 🚀 Quick Start with Docker Compose
 
 ### Prerequisites
