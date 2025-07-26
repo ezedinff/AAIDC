@@ -8,7 +8,7 @@ A comprehensive multi-agent system for automated video content creation using AI
 
 Watch the AI Video Generator in action:
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/Mu-_XU85XgY" title="AI Video Generator Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[![AI Video Generator Demo](https://img.youtube.com/vi/Mu-_XU85XgY/0.jpg)](https://www.youtube.com/watch?v=Mu-_XU85XgY)
 
 *This demo shows the complete workflow from text input to final video generation using our multi-agent system.*
 
