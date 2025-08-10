@@ -69,6 +69,31 @@ curl -X POST http://localhost:5000/api/videos \
   }'
 ```
 
+### Running Tests
+
+```bash
+# From repo root
+cd project-2/backend
+
+# (Optional) create and activate a virtualenv
+python3 -m venv .venv && source .venv/bin/activate
+
+# Install backend deps
+pip install -r requirements.txt
+
+# Recommended for deterministic tests (no external API calls)
+export MOCK_MODE=true
+
+# Run all tests (coverage configured via pytest.ini)
+python3 -m pytest -q
+
+# Run a single test
+python3 -m pytest tests/integration/test_validation_edges.py::test_max_lengths_ok -v
+
+# Show coverage summary (omit -q to print the report)
+python3 -m pytest
+```
+
 ### Database Features
 
 The system automatically tracks and stores:
