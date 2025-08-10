@@ -66,6 +66,10 @@ export const useVideoLibrary = () => {
     return apiClient.getDownloadUrl(videoId)
   }, [])
 
+  const getInlineUrl = useCallback((videoId: string) => {
+    return apiClient.getInlineUrl(videoId)
+  }, [])
+
   const formatDuration = useCallback((seconds?: number) => {
     if (!seconds) return '0:00'
     
@@ -123,6 +127,7 @@ export const useVideoLibrary = () => {
     loadVideos,
     deleteVideo,
     getDownloadUrl,
+    getInlineUrl,
     formatDuration,
     getStatusColor,
     getStatusText

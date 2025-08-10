@@ -23,6 +23,7 @@ class VideoAgent:
     
     def __init__(self):
         self.config = get_config()
+        self.mock_mode = self.config.get("mock_mode", False)
         self._ensure_output_dirs()
     
     def _ensure_output_dirs(self):
@@ -32,6 +33,9 @@ class VideoAgent:
     
     def assemble_video(self, scenes: List[Dict[str, Any]], audio_files: List[str]) -> str:
         """Assemble the final video from scenes and audio files."""
+        # In mock mode, generate a placeholder file and return
+        if self.mock_mode:
+            return self._create_placeholder_video()
         if not MOVIEPY_AVAILABLE:
             logger.error("MoviePy not available - cannot create video")
             return ""
@@ -75,6 +79,16 @@ class VideoAgent:
         except Exception as e:
             logger.error(f"Error assembling video: {e}")
             return ""
+    
+    def _create_placeholder_video(self) -> str:
+        """Create a placeholder artifact to simulate a final video in mock mode."""
+        placeholder_path = os.path.join(self.config["output_dir"], f"final_video_{self._get_timestamp()}.mp4")
+        try:
+            with open(placeholder_path, 'wb') as f:
+                f.write(b"MOCK_VIDEO")
+        except Exception as e:
+            logger.warning(f"Failed to create placeholder video: {e}")
+        return placeholder_path
     
     def _create_scene_video(self, scene: Dict[str, Any], audio_file: str, scene_index: int):
         """Create a video clip for a single scene."""
@@ -220,4 +234,4 @@ class VideoAgent:
     def _get_timestamp(self) -> str:
         """Get current timestamp for unique filenames."""
         import time
-        return str(int(time.time())) 
+        return str(time.time_ns()) 

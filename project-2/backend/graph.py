@@ -11,7 +11,6 @@ from agents.video_agent import VideoAgent
 from tools.database_tools import save_scene_progress, search_similar_videos, log_progress_event, get_video_context
 
 logger = logging.getLogger(__name__)
-
 class VideoGeneratorGraph:
     """LangGraph workflow for video generation."""
     
@@ -62,6 +61,14 @@ class VideoGeneratorGraph:
         
         # Compile the graph
         return workflow.compile()
+
+    def _scenes_have_unsafe_content(self, scenes: List[Dict[str, Any]]) -> bool:
+        for scene in scenes or []:
+            for key in ("description", "caption_text"):
+                val = str(scene.get(key, ""))
+                if val and _profanity.contains_profanity(val):
+                    return True
+        return False
     
     def _scene_generation_node(self, state: SimpleVideoState) -> Dict[str, Any]:
         """Scene generation node."""
@@ -247,6 +254,10 @@ class VideoGeneratorGraph:
             
             # Check if scenes are acceptable or need retry
             is_acceptable = self._evaluate_scenes_quality(improved_scenes, retry_count)
+            # Additional safety check: no profanity/unsafe keywords
+            if is_acceptable and self._scenes_have_unsafe_content(improved_scenes):
+                logger.warning("Scenes flagged by safety check; will retry if possible")
+                is_acceptable = False
             
             if is_acceptable or retry_count >= 3:
                 # Scenes are good or we've reached max retries

@@ -12,20 +12,23 @@ from flask import Flask
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from api import create_app
+from config import get_config
 
 app = create_app()
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    cfg = get_config()
+    port = int(os.environ.get('PORT', cfg.get('flask_port', 5000)))
     debug = os.environ.get('FLASK_ENV') == 'development'
+    host = cfg.get('flask_host', '0.0.0.0')
     
     print(f"🚀 Starting Agentic AI Video Generator API on port {port}")
-    print(f"🌐 API will be available at http://localhost:{port}")
-    print(f"📊 Health check: http://localhost:{port}/api/health")
-    print(f"📚 Video library: http://localhost:{port}/api/videos")
+    print(f"🌐 API will be available at http://{host}:{port}")
+    print(f"📊 Health check: http://{host}:{port}/api/health")
+    print(f"📚 Video library: http://{host}:{port}/api/videos")
     
     app.run(
-        host='0.0.0.0',
+        host=host,
         port=port,
         debug=debug,
         threaded=True

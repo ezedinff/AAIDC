@@ -11,11 +11,26 @@ from config import get_config
 from database import db, Video, VideoProgress, DatabaseManager, init_database
 from graph import VideoGeneratorGraph
 
+# Additional imports for validation and health checks
+from pydantic import BaseModel, Field, ValidationError
+from functools import lru_cache
+import os
+from sqlalchemy import text
+import json as _json
+
+# Local services and utils
+from services.moderation import _llm_moderation_flagged
+from utils.media import compute_duration_from_file
+from utils.sanitize import sanitize_input
+from services.video_generation import generate_video_async, VideoGeneratorWithProgress
+
+
 app = Flask(__name__)
-CORS(app)
+config = get_config()
+# Configure CORS based on configured origins
+CORS(app, resources={r"/api/*": {"origins": config["cors_origins"]}})
 
 # Configure Flask app
-config = get_config()
 app.config['SQLALCHEMY_DATABASE_URI'] = config['database_url']
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = config['secret_key']
@@ -33,11 +48,22 @@ sse_connections = {}
 # Global dictionary to store real-time progress updates
 progress_updates = {}
 
+class CreateVideoPayload(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    description: str = Field(min_length=1, max_length=2000)
+    user_input: str = Field(min_length=1, max_length=4000)
+
+
 @app.route('/api/videos', methods=['GET'])
 def get_videos():
     """Get all videos from the database."""
     try:
         videos = db_manager.get_all_videos()
+        for video in videos:
+            if not video.duration or video.duration == 0:
+                if video.file_path and os.path.exists(video.file_path):
+                    video.duration = compute_duration_from_file(video.file_path)
+                    db.session.commit()
         return jsonify({
             'success': True,
             'videos': [video.to_dict() for video in videos]
@@ -73,14 +99,26 @@ def get_video(video_id: str):
 def create_video():
     """Create a new video generation request."""
     try:
-        data = request.get_json()
+        if not request.is_json:
+            return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 400
+        data = request.get_json(silent=True) or {}
+        try:
+            payload = CreateVideoPayload(**data)
+        except ValidationError as ve:
+            return jsonify({'success': False, 'error': ve.errors()}), 400
         
-        if not data or 'user_input' not in data:
-            raise BadRequest('user_input is required')
-        
-        user_input = data['user_input']
-        title = data.get('title', f'Video - {datetime.now().strftime("%Y-%m-%d %H:%M")}')
-        description = data.get('description', '')
+        user_input = payload.user_input.strip()
+        title = payload.title.strip() or f'Video - {datetime.now().strftime("%Y-%m-%d %H:%M")}'
+        description = payload.description.strip()
+
+        # Sanitize inputs
+        title = sanitize_input(title, 255)
+        description = sanitize_input(description, 2000)
+        user_input = sanitize_input(user_input, 4000)
+
+        # Moderation pre-filter (disabled in mock mode)
+        if _llm_moderation_flagged(f"{title} {description} {user_input}"):
+            return jsonify({'success': False, 'error': 'Content violates policy'}), 422
         
         # Create video record
         video = db_manager.create_video(title, description, user_input)
@@ -88,7 +126,7 @@ def create_video():
         # Start video generation in background
         thread = threading.Thread(
             target=generate_video_async,
-            args=(video.id, user_input)
+            args=(app, video.id, user_input, db_manager, progress_updates)
         )
         thread.daemon = True
         thread.start()
@@ -223,16 +261,25 @@ def download_video(video_id: str):
                 'error': 'Video file not available'
             }), 404
         
-        if not os.path.exists(video.file_path):
+        # Ensure file path is under configured outputs dir for safety
+        outputs_root = os.path.abspath(config.get('output_dir'))
+        file_path = os.path.abspath(video.file_path)
+        print(f"Download request path check: outputs_root={outputs_root} file_path={file_path}")
+        if not file_path.startswith(outputs_root):
+            return jsonify({'success': False, 'error': 'Invalid file path'}), 400
+        if not os.path.exists(file_path):
+            print(f"File not found at path: {file_path}")
             return jsonify({
                 'success': False,
                 'error': 'Video file not found on disk'
             }), 404
         
         from flask import send_file
+        # Allow inline playback if requested
+        as_attachment = request.args.get('inline') not in ('1', 'true', 'yes')
         return send_file(
-            video.file_path,
-            as_attachment=True,
+            file_path,
+            as_attachment=as_attachment,
             download_name=f"{video.title}.mp4",
             mimetype='video/mp4'
         )
@@ -275,12 +322,52 @@ def delete_video(video_id: str):
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Health check endpoint."""
-    return jsonify({
+    """Health check endpoint with DB and filesystem checks."""
+    health = {
         'success': True,
         'status': 'healthy',
-        'timestamp': datetime.utcnow().isoformat()
-    })
+        'timestamp': datetime.utcnow().isoformat(),
+        'mock_mode': config.get('mock_mode', False),
+        'checks': {}
+    }
+    # DB check
+    try:
+        db.session.execute(text('SELECT 1'))
+        health['checks']['database'] = 'ok'
+    except Exception as e:
+        health['checks']['database'] = f'error: {e}'
+        health['success'] = False
+        health['status'] = 'degraded'
+    # Directory write checks
+    for key in ['output_dir', 'temp_dir']:
+        path = config.get(key)
+        try:
+            os.makedirs(path, exist_ok=True)
+            test_file = os.path.join(path, '.healthcheck')
+            with open(test_file, 'w') as f:
+                f.write('ok')
+            os.remove(test_file)
+            health['checks'][key] = 'writable'
+        except Exception as e:
+            health['checks'][key] = f'not_writable: {e}'
+            health['success'] = False
+            health['status'] = 'degraded'
+    return jsonify(health)
+
+@app.route('/api/metrics', methods=['GET'])
+def metrics():
+    """Basic metrics: counts of videos by status."""
+    try:
+        counts = {s: 0 for s in ['pending', 'processing', 'completed', 'failed']}
+        videos = db_manager.get_all_videos()
+        for v in videos:
+            if v.status in counts:
+                counts[v.status] += 1
+            else:
+                counts[v.status] = counts.get(v.status, 0) + 1
+        return jsonify({'success': True, 'counts': counts, 'total': len(videos)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/test-video', methods=['POST'])
 def create_test_video():
@@ -308,105 +395,6 @@ def create_test_video():
             'success': False,
             'error': str(e)
         }), 500
-
-def generate_video_async(video_id: str, user_input: str):
-    """Generate video asynchronously and update database."""
-    with app.app_context():
-        try:
-            # Update status to processing
-            db_manager.update_video_status(video_id, 'processing', 'initializing', 0)
-            db_manager.add_progress_entry(video_id, 'initialization', 'started', 'Starting video generation')
-            
-            # Create a custom workflow that updates progress
-            workflow_with_progress = VideoGeneratorWithProgress(video_id, db_manager)
-            result = workflow_with_progress.generate_video(user_input)
-            
-            final_video_path = result.get('final_video')
-            if final_video_path and os.path.exists(final_video_path):
-                # Get video duration if possible
-                duration = None
-                try:
-                    import moviepy.editor as mp
-                    video_clip = mp.VideoFileClip(final_video_path)
-                    duration = video_clip.duration
-                    video_clip.close()
-                except:
-                    pass
-                
-                # Update database with success
-                db_manager.update_video_result(video_id, final_video_path, duration or 0.0)
-                db_manager.add_progress_entry(video_id, 'completion', 'completed', 'Video generation completed successfully')
-                
-            else:
-                # Update database with failure
-                error_msg = result.get('error', 'Unknown error occurred')
-                db_manager.update_video_status(video_id, 'failed', 'failed', 100, error_msg)
-                db_manager.add_progress_entry(video_id, 'completion', 'failed', f'Video generation failed: {error_msg}')
-                
-        except Exception as e:
-            # Update database with error
-            error_msg = str(e)
-            db_manager.update_video_status(video_id, 'failed', 'failed', 100, error_msg)
-            db_manager.add_progress_entry(video_id, 'completion', 'failed', f'Video generation failed: {error_msg}')
-
-class VideoGeneratorWithProgress:
-    """Video generator wrapper that provides progress updates."""
-    
-    def __init__(self, video_id: str, db_manager: DatabaseManager):
-        self.video_id = video_id
-        self.db_manager = db_manager
-        # Create generator with progress callback and video_id for database tools
-        self.generator = VideoGeneratorGraph(progress_callback=self._send_sse_update, video_id=video_id)
-    
-    def _send_sse_update(self, step: str, progress: int, message: str):
-        """Send SSE update to connected clients."""
-        try:
-            # Update database - use appropriate status based on step
-            if step == 'completed':
-                self.db_manager.update_video_status(self.video_id, 'completed', step, progress)
-                self.db_manager.add_progress_entry(self.video_id, step, 'completed', message)
-            elif step in ['failed', 'video_assembly_failed', 'scene_generation_failed', 'scene_critique_failed', 'audio_generation_failed']:
-                self.db_manager.update_video_status(self.video_id, 'failed', step, progress)
-                self.db_manager.add_progress_entry(self.video_id, step, 'failed', message)
-            else:
-                self.db_manager.update_video_status(self.video_id, 'processing', step, progress)
-                self.db_manager.add_progress_entry(self.video_id, step, 'started', message)
-            
-            # Store progress update for SSE broadcasting
-            progress_updates[self.video_id] = {
-                'type': 'progress',
-                'step': step,
-                'progress': progress,
-                'message': message,
-                'timestamp': datetime.utcnow().isoformat()
-            }
-            
-            print(f"Progress update sent: {step} - {progress}% - {message}")
-                            
-        except Exception as e:
-            print(f"Error sending SSE update: {e}")
-    
-    def generate_video(self, user_input: str) -> Dict[str, Any]:
-        """Generate video with real-time progress tracking."""
-        try:
-            # Send initial progress update
-            self._send_sse_update('initializing', 5, 'Starting video generation...')
-            
-            # Run the complete workflow - progress updates will be sent by individual nodes
-            result = self.generator.generate_video(user_input)
-            
-            # Ensure final status is sent
-            if result.get('final_video'):
-                self._send_sse_update('completed', 100, 'Video generation completed successfully!')
-            else:
-                error_msg = result.get('error', 'Unknown error')
-                self._send_sse_update('failed', 100, f"Video generation failed: {error_msg}")
-            
-            return result
-            
-        except Exception as e:
-            self._send_sse_update('failed', 100, f'Video generation failed: {str(e)}')
-            raise e
 
 def create_app():
     """Create and configure Flask app."""

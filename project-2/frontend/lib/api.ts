@@ -138,6 +138,11 @@ class ApiClient {
   getDownloadUrl(videoId: string): string {
     return `${this.baseUrl}/api/videos/${videoId}/download`
   }
+
+  // Inline playback URL
+  getInlineUrl(videoId: string): string {
+    return `${this.baseUrl}/api/videos/${videoId}/download?inline=1`
+  }
 }
 
 export const apiClient = new ApiClient()

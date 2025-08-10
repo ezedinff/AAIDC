@@ -47,7 +47,9 @@ class Video(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'current_step': self.current_step,
             'progress_percent': self.progress_percent,
-            'error_message': self.error_message
+            'error_message': self.error_message,
+            'raw_scenes': self.raw_scenes,
+            'improved_scenes': self.improved_scenes,
         }
 
 class VideoProgress(db.Model):

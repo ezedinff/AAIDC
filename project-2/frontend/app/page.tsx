@@ -5,17 +5,19 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-import { ChevronLeft, ChevronRight, Download, Play, Pause, Video, Loader2, AlertCircle, CheckCircle, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, Play, Pause, Video, Loader2, AlertCircle, CheckCircle, Trash2, X, PlayCircle } from "lucide-react"
 import { useVideoCreation } from "@/lib/hooks/useVideoCreation"
 import { useVideoLibrary } from "@/lib/hooks/useVideoLibrary"
 import { ApiStatus } from "@/components/api-status"
 import { ProgressIndicator } from "@/components/progress-indicator"
+import type { Video as VideoType } from "@/lib/api"
 
 export default function Component() {
   const [showForm, setShowForm] = useState(false)
   const [videoTitle, setVideoTitle] = useState("")
   const [videoDescription, setVideoDescription] = useState("")
   const [isPlaying, setIsPlaying] = useState(false)
+  const [selectedVideo, setSelectedVideo] = useState<VideoType | null>(null)
 
   // Use custom hooks for backend integration
   const videoCreation = useVideoCreation()
@@ -35,7 +37,7 @@ export default function Component() {
     if (videoCreation.video) {
       const currentBackendStep = videoCreation.video.current_step
       const targetStep = videoCreation.stepMapping[currentBackendStep]
-      
+
       if (targetStep && targetStep !== videoCreation.currentStep) {
         videoCreation.setCurrentStep(targetStep)
       }
@@ -154,8 +156,8 @@ export default function Component() {
                 <div className="text-center text-gray-500">
                   <div className="flex items-center justify-center mb-2">
                     {videoCreation.isProcessing && (
-                      videoCreation.video?.current_step === 'scene_generation' || 
-                      videoCreation.video?.current_step === 'scene_critique' || 
+                      videoCreation.video?.current_step === 'scene_generation' ||
+                      videoCreation.video?.current_step === 'scene_critique' ||
                       videoCreation.video?.current_step === 'scene_critique_retry'
                     ) ? (
                       <Loader2 className="h-8 w-8 animate-spin mr-2" />
@@ -165,13 +167,13 @@ export default function Component() {
                     <Video className="h-8 w-8" />
                   </div>
                   <p className="text-sm font-medium">
-                    {videoCreation.progressMessage || 
-                      (videoCreation.video?.current_step === 'scene_generation' ? 
+                    {videoCreation.progressMessage ||
+                      (videoCreation.video?.current_step === 'scene_generation' ?
                         'AI is generating video scenes...' :
                         videoCreation.video?.current_step === 'scene_critique' ||
-                        videoCreation.video?.current_step === 'scene_critique_retry' ?
-                        'AI is reviewing and improving scenes...' :
-                        'Scene generation complete'
+                          videoCreation.video?.current_step === 'scene_critique_retry' ?
+                          'AI is reviewing and improving scenes...' :
+                          'Scene generation complete'
                       )
                     }
                   </p>
@@ -186,11 +188,11 @@ export default function Component() {
             </div>
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-700">
-                {videoCreation.progressMessage || 
+                {videoCreation.progressMessage ||
                   `The AI is analyzing your description and generating optimized video scenes. 
-                  ${videoCreation.video?.current_step === 'scene_critique' || 
-                    videoCreation.video?.current_step === 'scene_critique_retry' ? 
-                    'The AI is now reviewing and improving the scenes for better quality.' : 
+                  ${videoCreation.video?.current_step === 'scene_critique' ||
+                    videoCreation.video?.current_step === 'scene_critique_retry' ?
+                    'The AI is now reviewing and improving the scenes for better quality.' :
                     'This process may take a few minutes.'
                   }`
                 }
@@ -219,16 +221,15 @@ export default function Component() {
                     <div className="flex-1">
                       <div className="text-sm font-medium">Scene {trackNumber} Audio</div>
                       <div className="text-xs text-gray-500">
-                        {videoCreation.video?.current_step === 'audio_generation' ? 
-                          'Generating audio...' : 
+                        {videoCreation.video?.current_step === 'audio_generation' ?
+                          'Generating audio...' :
                           'Audio ready'
                         }
                       </div>
                     </div>
                     <div className="w-32 h-1 bg-gray-200 rounded-full">
-                      <div className={`h-1 bg-blue-600 rounded-full ${
-                        videoCreation.video?.current_step === 'audio_generation' ? 'w-2/3 animate-pulse' : 'w-full'
-                      }`}></div>
+                      <div className={`h-1 bg-blue-600 rounded-full ${videoCreation.video?.current_step === 'audio_generation' ? 'w-2/3 animate-pulse' : 'w-full'
+                        }`}></div>
                     </div>
                   </div>
                 ))}
@@ -236,7 +237,7 @@ export default function Component() {
             </div>
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-700">
-                {videoCreation.progressMessage || 
+                {videoCreation.progressMessage ||
                   'AI is generating high-quality audio narration for your video scenes with natural-sounding voices.'
                 }
               </p>
@@ -259,7 +260,7 @@ export default function Component() {
                   </div>
                 </div>
               </div>
-              <Button 
+              <Button
                 className="w-full bg-black text-white hover:bg-gray-800"
                 onClick={() => {
                   const downloadUrl = videoLibrary.getDownloadUrl(videoCreation.video!.id)
@@ -269,6 +270,16 @@ export default function Component() {
                 <Download className="h-4 w-4 mr-2" />
                 Download Video
               </Button>
+              {/* Inline player */}
+              <div className="mt-4">
+                <video
+                  className="w-full rounded-lg border border-gray-200"
+                  controls
+                  src={videoLibrary.getDownloadUrl(videoCreation.video!.id) + '?inline=1'}
+                // Prefer helper for clarity
+                // src={videoLibrary.getInlineUrl(videoCreation.video!.id)}
+                />
+              </div>
             </div>
           )
         } else if (videoCreation.video?.status === 'failed') {
@@ -286,7 +297,7 @@ export default function Component() {
                   </div>
                 </div>
               </div>
-              <Button 
+              <Button
                 variant="outline"
                 className="w-full border-red-300 text-red-700 hover:bg-red-50"
                 onClick={() => {
@@ -317,7 +328,7 @@ export default function Component() {
               </div>
               <div className="p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-700">
-                  {videoCreation.progressMessage || 
+                  {videoCreation.progressMessage ||
                     'AI is combining all elements to create your final video. This is the last step!'
                   }
                 </p>
@@ -361,9 +372,9 @@ export default function Component() {
                     {getStepTitle(videoCreation.currentStep)} - {getStepDescription(videoCreation.currentStep)}
                   </CardDescription>
                 </div>
-                <Button 
-                  variant="outline" 
-                  onClick={handleCancelCreate} 
+                <Button
+                  variant="outline"
+                  onClick={handleCancelCreate}
                   className="border-gray-300"
                   disabled={videoCreation.isLoading}
                 >
@@ -376,9 +387,8 @@ export default function Component() {
                 {[1, 2, 3, 4].map((step) => (
                   <div key={step} className="flex items-center">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        step <= videoCreation.currentStep ? "bg-black text-white" : "bg-gray-200 text-gray-500"
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step <= videoCreation.currentStep ? "bg-black text-white" : "bg-gray-200 text-gray-500"
+                        }`}
                     >
                       {step}
                     </div>
@@ -442,18 +452,18 @@ export default function Component() {
                     )}
                   </Button>
                 ) : videoCreation.currentStep === 2 ? (
-                  <Button 
+                  <Button
                     onClick={() => videoCreation.setCurrentStep(3)}
                     className="bg-black text-white hover:bg-gray-800"
                     disabled={videoCreation.isProcessing && (
-                      videoCreation.video?.current_step === 'scene_generation' || 
-                      videoCreation.video?.current_step === 'scene_critique' || 
+                      videoCreation.video?.current_step === 'scene_generation' ||
+                      videoCreation.video?.current_step === 'scene_critique' ||
                       videoCreation.video?.current_step === 'scene_critique_retry'
                     )}
                   >
                     {videoCreation.isProcessing && (
-                      videoCreation.video?.current_step === 'scene_generation' || 
-                      videoCreation.video?.current_step === 'scene_critique' || 
+                      videoCreation.video?.current_step === 'scene_generation' ||
+                      videoCreation.video?.current_step === 'scene_critique' ||
                       videoCreation.video?.current_step === 'scene_critique_retry'
                     ) ? (
                       <>
@@ -468,7 +478,7 @@ export default function Component() {
                     )}
                   </Button>
                 ) : videoCreation.currentStep === 3 ? (
-                  <Button 
+                  <Button
                     onClick={() => videoCreation.setCurrentStep(4)}
                     className="bg-black text-white hover:bg-gray-800"
                     disabled={videoCreation.isProcessing && videoCreation.video?.current_step === 'audio_generation'}
@@ -486,8 +496,8 @@ export default function Component() {
                     )}
                   </Button>
                 ) : (
-                  <Button 
-                    onClick={handleComplete} 
+                  <Button
+                    onClick={handleComplete}
                     className="bg-black text-white hover:bg-gray-800"
                     disabled={videoCreation.isProcessing}
                   >
@@ -503,8 +513,8 @@ export default function Component() {
         <div>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-black">Video Library</h2>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={videoLibrary.loadVideos}
               disabled={videoLibrary.isLoading}
               className="border-gray-300"
@@ -537,43 +547,76 @@ export default function Component() {
                 </Card>
               ))}
             </div>
-                     ) : !Array.isArray(videoLibrary.videos) || videoLibrary.videos.length === 0 ? (
+          ) : !Array.isArray(videoLibrary.videos) || videoLibrary.videos.length === 0 ? (
             <div className="text-center py-12">
               <Video className="mx-auto h-16 w-16 text-gray-400 mb-4" />
               <p className="text-gray-600">No videos created yet.</p>
               <p className="text-sm text-gray-500 mt-1">Click "Create Video" to get started!</p>
             </div>
           ) : (
-                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               {Array.isArray(videoLibrary.videos) && videoLibrary.videos.map((video) => (
-                <Card key={video.id} className="border-gray-200 hover:shadow-md transition-shadow">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.isArray(videoLibrary.videos) && videoLibrary.videos.map((video) => (
+                <Card
+                  key={video.id}
+                  className="group cursor-pointer border-gray-200 rounded-xl transition-all hover:shadow-lg hover:-translate-y-0.5"
+                  onClick={() => {
+                    if (video.status === 'completed') setSelectedVideo(video as unknown as VideoType)
+                  }}
+                >
                   <CardContent className="p-0">
-                    <div className="relative">
-                      <div className="w-full h-32 bg-gray-100 rounded-t-lg flex items-center justify-center">
-                        <Video className="h-12 w-12 text-gray-400" />
-                      </div>
-                      <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                        {videoLibrary.formatDuration(video.duration)}
-                      </div>
-                      <div className={`absolute top-2 left-2 text-xs px-2 py-1 rounded ${
-                        video.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        video.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                        video.status === 'failed' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                    <div className="relative overflow-hidden rounded-t-xl">
+                      {video.status === 'completed' ? (
+                        <>
+                          <video
+                            className="w-full h-32 object-cover"
+                            muted
+                            autoPlay
+                            loop
+                            playsInline
+                            src={videoLibrary.getInlineUrl ? videoLibrary.getInlineUrl(video.id) : (videoLibrary.getDownloadUrl(video.id) + '?inline=1')}
+                          />
+                          {/* Gradient overlay for readability */}
+                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-black/20" />
+                          {/* Big play icon overlay */}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity">
+                            <div className="rounded-full bg-black/30 p-2 ring-1 ring-white/40">
+                              <PlayCircle className="h-16 w-16 text-white drop-shadow-md" />
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-32 bg-gray-100 rounded-t-xl flex items-center justify-center">
+                          <Video className="h-12 w-12 text-gray-400" />
+                        </div>
+                      )}
+                      {/* Status pill */}
+                      <div className={`absolute top-2 left-2 text-[11px] px-2 py-1 rounded-full shadow ${video.status === 'completed' ? 'bg-green-600 text-white' :
+                          video.status === 'processing' ? 'bg-blue-600 text-white' :
+                            video.status === 'failed' ? 'bg-red-600 text-white' :
+                              'bg-gray-600 text-white'
+                        }`}>
                         {videoLibrary.getStatusText(video.status)}
+                      </div>
+                      {/* Duration pill */}
+                      <div className="absolute top-2 right-2 text-[11px] px-2 py-1 rounded-full bg-black/70 text-white shadow">
+                        {videoLibrary.formatDuration(video.duration)}
                       </div>
                     </div>
                     <div className="p-4">
-                      <h3 className="font-medium text-black mb-1">{video.title}</h3>
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{video.description}</p>
-                      <div className="flex space-x-2">
+                      <h3 className="font-semibold text-black mb-1 line-clamp-2 group-hover:underline underline-offset-2 decoration-gray-300">
+                        {video.title}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                        {video.description}
+                      </p>
+                      <div className="flex items-center gap-2">
                         {video.status === 'completed' && (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="flex-1 border-gray-300 hover:bg-gray-50 bg-transparent"
-                            onClick={() => {
+                            className="flex-1 border-gray-300 hover:bg-gray-50 bg-white"
+                            onClick={(e) => {
+                              e.stopPropagation()
                               const downloadUrl = videoLibrary.getDownloadUrl(video.id)
                               window.open(downloadUrl, '_blank')
                             }}
@@ -586,7 +629,7 @@ export default function Component() {
                           variant="outline"
                           size="sm"
                           className="border-red-300 text-red-700 hover:bg-red-50"
-                          onClick={() => handleDeleteVideo(video.id)}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteVideo(video.id) }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -599,6 +642,29 @@ export default function Component() {
           )}
         </div>
       </div>
+      {/* Modal Player */}
+      {selectedVideo && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setSelectedVideo(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <div>
+                <h3 className="text-lg font-semibold text-black">{selectedVideo.title}</h3>
+                <p className="text-sm text-gray-500">{videoLibrary.formatDuration(selectedVideo.duration)}</p>
+              </div>
+              <Button variant="outline" className="border-gray-300" onClick={() => setSelectedVideo(null)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <video
+                className="w-full rounded-lg border border-gray-200"
+                controls
+                src={videoLibrary.getInlineUrl ? videoLibrary.getInlineUrl(selectedVideo.id) : (videoLibrary.getDownloadUrl(selectedVideo.id) + '?inline=1')}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
