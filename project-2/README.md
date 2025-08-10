@@ -1,4 +1,6 @@
 # AI Video Generator
+![AI Video Generator Hero](https://github.com/ezedinff/AAIDC/blob/main/project-2/screenshots/video-generated.png?raw=true)
+*Transforming ideas into compelling video content through intelligent automation*
 
 A comprehensive multi-agent system for automated video content creation using AI. Generate high-quality videos with synchronized audio narration from simple text descriptions.
 
