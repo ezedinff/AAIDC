@@ -36,7 +36,8 @@ def test_video_generator_with_progress_marks_failed(monkeypatch):
         v = dbm.create_video('Fail', 'desc', 'input')
         vid = v.id
         # Make audio generation fail through the graph in wrapper
-        wrapper = VideoGeneratorWithProgress(vid, dbm)
+        progress_updates = {}  # Empty dict for testing
+        wrapper = VideoGeneratorWithProgress(vid, dbm, progress_updates)
         monkeypatch.setattr(wrapper.generator.audio_agent, 'generate_audio', lambda s: (_ for _ in ()).throw(RuntimeError('err')))
         result = wrapper.generate_video('input')
         video = dbm.get_video(vid)
